@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>채소 테트리스 (Vegetable Tetris)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            pixel: ['"Press Start 2P"', 'cursive', 'sans-serif'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Tone.js for Retro Synth Audio & BGM -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+    /* Dynamic Theme Transitions */
+    .theme-transition {
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+  </style>
+</head>
+<body class="dark bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-2 sm:p-4 theme-transition">
+
+  <!-- Outer Application Wrapper -->
+  <div class="w-full max-w-4xl flex flex-col items-center my-auto">
+    
+    <!-- Main Game Box Container -->
+    <div class="w-full bg-slate-900 dark:bg-slate-900 border border-slate-800 dark:border-slate-800 light:bg-emerald-50 light:border-emerald-200 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col items-center theme-transition">
+      
+      <!-- Top Header & Global Control Actions -->
+      <div class="w-full flex flex-wrap justify-between items-center mb-4 pb-3 border-b border-slate-800 dark:border-slate-800 light:border-emerald-200 gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl sm:text-3xl">🥦</span>
+          <div>
+            <h1 class="font-bold text-xl sm:text-2xl text-emerald-400 dark:text-emerald-400 light:text-emerald-700 tracking-wide flex items-center gap-2">
+              채소 테트리스 <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 light:text-emerald-800">Farm Edition</span>
+            </h1>
+            <p class="text-xs text-slate-400 light:text-emerald-800 hidden sm:block">싱싱한 채소를 차곡차곡 쌓아보세요!</p>
+          </div>
+        </div>
+
+        <!-- Controls: Theme Toggle, Sound FX, BGM, Pause, Restart -->
+        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <!-- Theme Switch Button -->
+          <button id="themeToggleBtn" title="화이트/다크 모드 전환" class="bg-slate-800 light:bg-white text-slate-200 light:text-emerald-800 p-2.5 rounded-xl border border-slate-700 light:border-emerald-300 hover:scale-105 active:scale-95 transition text-sm font-semibold shadow-sm flex items-center gap-1">
+            <span id="themeIcon">🌙</span>
+            <span class="hidden md:inline text-xs" id="themeLabel">다크</span>
+          </button>
+
+          <!-- BGM Toggle Button -->
+          <button id="bgmBtn" title="배경음악 켜기/끄기" class="bg-slate-800 light:bg-white text-slate-200 light:text-emerald-800 p-2.5 rounded-xl border border-slate-700 light:border-emerald-300 hover:scale-105 active:scale-95 transition text-sm font-semibold shadow-sm flex items-center gap-1">
+            <span id="bgmIcon">🎵</span>
+            <span class="hidden md:inline text-xs">BGM</span>
+          </button>
+
+          <!-- SFX Sound Button -->
+          <button id="sfxBtn" title="효과음 켜기/끄기" class="bg-slate-800 light:bg-white text-slate-200 light:text-emerald-800 p-2.5 rounded-xl border border-slate-700 light:border-emerald-300 hover:scale-105 active:scale-95 transition text-sm font-semibold shadow-sm flex items-center gap-1">
+            <span id="sfxIcon">🔊</span>
+            <span class="hidden md:inline text-xs">효과음</span>
+          </button>
+
+          <!-- Pause Button -->
+          <button id="pauseBtn" class="bg-slate-800 light:bg-white text-slate-200 light:text-emerald-800 p-2.5 rounded-xl border border-slate-700 light:border-emerald-300 hover:scale-105 active:scale-95 transition text-sm font-semibold shadow-sm">
+            <span id="pauseIcon">⏸️</span>
+          </button>
+
+          <!-- Restart Button -->
+          <button id="restartBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-xl font-bold transition flex items-center gap-1 text-sm shadow-md hover:scale-105 active:scale-95">
+            🔄 <span class="hidden sm:inline text-xs">다시시작</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Play Area & Side Panels -->
+      <div class="w-full flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6">
+        
+        <!-- Left Panel: High Score, Current Score, Level, Lines & Hold Slot -->
+        <div class="w-full md:w-48 flex md:flex-col justify-between md:justify-start gap-2.5 order-2 md:order-1">
+          
+          <!-- High Score & Score Card -->
+          <div class="flex-1 bg-slate-950 light:bg-white p-3 rounded-2xl border border-slate-800 light:border-emerald-200 shadow-inner flex flex-col items-center">
+            <span class="text-[10px] sm:text-xs text-slate-400 light:text-emerald-700 font-bold uppercase tracking-wider mb-0.5">최고 점수 🏆</span>
+            <span id="highScoreText" class="font-pixel text-xs sm:text-sm text-amber-400 light:text-amber-600 mb-1">0</span>
+            
+            <div class="w-full border-t border-slate-800 light:border-emerald-100 my-1"></div>
+            
+            <span class="text-[10px] sm:text-xs text-slate-400 light:text-emerald-700 font-bold uppercase tracking-wider mb-0.5">현재 점수</span>
+            <span id="scoreText" class="font-pixel text-sm sm:text-lg text-emerald-400 light:text-emerald-600">0</span>
+          </div>
+
+          <!-- Level & Lines Card -->
+          <div class="flex-1 bg-slate-950 light:bg-white p-3 rounded-2xl border border-slate-800 light:border-emerald-200 shadow-inner flex flex-row md:flex-col justify-around items-center">
+            <div class="text-center">
+              <span class="text-[10px] sm:text-xs text-slate-400 light:text-emerald-700 font-bold uppercase tracking-wider block">레벨</span>
+              <span id="levelText" class="font-pixel text-sm sm:text-base text-cyan-400 light:text-teal-600">1</span>
+            </div>
+            <div class="text-center">
+              <span class="text-[10px] sm:text-xs text-slate-400 light:text-emerald-700 font-bold uppercase tracking-wider block">수확한 줄</span>
+              <span id="linesText" class="font-pixel text-sm sm:text-base text-amber-400 light:text-amber-600">0</span>
+            </div>
+          </div>
+
+          <!-- Hold Piece Canvas -->
+          <div class="flex-1 bg-slate-950 light:bg-white p-3 rounded-2xl border border-slate-800 light:border-emerald-200 shadow-inner flex flex-col items-center">
+            <div class="flex items-center gap-1 mb-1">
+              <span class="text-xs font-bold text-slate-300 light:text-emerald-800 uppercase tracking-wider">보관함 (C)</span>
+            </div>
+            <canvas id="holdCanvas" width="90" height="90" class="bg-slate-900/60 light:bg-emerald-50/80 rounded-xl border border-slate-800 light:border-emerald-200"></canvas>
+            <span id="holdVegetableLabel" class="text-[11px] font-semibold text-emerald-400 light:text-emerald-700 mt-1.5 min-h-[16px]">-</span>
+          </div>
+        </div>
+
+        <!-- Center: Game Board & Overlay UI -->
+        <div class="relative order-1 md:order-2 flex justify-center items-center">
+          <canvas id="tetrisCanvas" width="300" height="600" class="bg-slate-950 light:bg-white rounded-2xl border-4 border-slate-800 light:border-emerald-300 shadow-2xl"></canvas>
+
+          <!-- Start / Game Over / Pause Overlay Screen -->
+          <div id="overlay" class="absolute inset-0 bg-slate-950/90 light:bg-emerald-950/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center transition-all duration-300 z-10">
+            <div class="text-5xl mb-3 animate-bounce" id="overlayEmoji">🥦</div>
+            <h2 id="overlayTitle" class="font-pixel text-xl sm:text-2xl text-emerald-400 light:text-emerald-300 mb-2">채소 테트리스</h2>
+            <p id="overlaySubtitle" class="text-slate-300 light:text-emerald-100 mb-6 text-xs sm:text-sm max-w-xs leading-relaxed">
+              신선한 농물들을 완벽하게 조립하여 농장을 완성하세요!
+            </p>
+            <button id="startBtn" class="bg-emerald-500 hover:bg-emerald-400 light:bg-emerald-400 light:hover:bg-emerald-300 text-slate-950 font-extrabold px-8 py-3.5 rounded-2xl shadow-lg transition transform hover:scale-105 active:scale-95 text-sm tracking-wider">
+              시작하기 (SPACE)
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Panel: Next Piece Preview & Controls Info -->
+        <div class="w-full md:w-48 flex md:flex-col justify-between md:justify-start gap-2.5 order-3">
+          
+          <!-- Next Piece Canvas -->
+          <div class="w-1/2 md:w-full bg-slate-950 light:bg-white p-3 rounded-2xl border border-slate-800 light:border-emerald-200 shadow-inner flex flex-col items-center">
+            <span class="text-xs font-bold text-slate-300 light:text-emerald-800 uppercase tracking-wider mb-1">다음 채소</span>
+            <canvas id="nextCanvas" width="90" height="90" class="bg-slate-900/60 light:bg-emerald-50/80 rounded-xl border border-slate-800 light:border-emerald-200"></canvas>
+            <span id="nextVegetableLabel" class="text-[11px] font-semibold text-emerald-400 light:text-emerald-700 mt-1.5 min-h-[16px]">-</span>
+          </div>
+
+          <!-- Vegetable Legends Display -->
+          <div class="w-1/2 md:w-full bg-slate-950 light:bg-white p-3 rounded-2xl border border-slate-800 light:border-emerald-200 text-xs text-slate-400 light:text-emerald-800 hidden sm:block shadow-inner">
+            <span class="text-slate-200 light:text-emerald-900 font-bold uppercase tracking-wider block mb-2 text-center border-b border-slate-800 light:border-emerald-100 pb-1">농장 채소 가이드</span>
+            <ul class="space-y-1 text-[11px]">
+              <li class="flex items-center gap-1.5"><span>🥕</span> <span class="font-medium text-slate-300 light:text-emerald-900">당근 (I)</span></li>
+              <li class="flex items-center gap-1.5"><span>🥦</span> <span class="font-medium text-slate-300 light:text-emerald-900">브로콜리 (T)</span></li>
+              <li class="flex items-center gap-1.5"><span>🌽</span> <span class="font-medium text-slate-300 light:text-emerald-900">옥수수 (O)</span></li>
+              <li class="flex items-center gap-1.5"><span>🍆</span> <span class="font-medium text-slate-300 light:text-emerald-900">가지 (J)</span></li>
+              <li class="flex items-center gap-1.5"><span>🍅</span> <span class="font-medium text-slate-300 light:text-emerald-900">토마토 (L)</span></li>
+              <li class="flex items-center gap-1.5"><span>🥒</span> <span class="font-medium text-slate-300 light:text-emerald-900">오이 (S)</span></li>
+              <li class="flex items-center gap-1.5"><span>🌶️</span> <span class="font-medium text-slate-300 light:text-emerald-900">고추 (Z)</span></li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- On-Screen Touch Controls for Mobile Devices -->
+      <div class="w-full max-w-md mt-4 pt-3 border-t border-slate-800 light:border-emerald-200 grid grid-cols-5 gap-1.5 md:hidden">
+        <button id="btnHold" class="bg-slate-800 light:bg-white active:bg-slate-700 text-slate-200 light:text-emerald-900 p-3 rounded-xl text-xs font-bold border border-slate-700 light:border-emerald-300 shadow">HOLD</button>
+        <button id="btnLeft" class="bg-slate-800 light:bg-white active:bg-slate-700 text-slate-200 light:text-emerald-900 p-3 rounded-xl text-lg font-bold border border-slate-700 light:border-emerald-300 shadow">◀</button>
+        <button id="btnRotate" class="bg-slate-800 light:bg-white active:bg-slate-700 text-slate-200 light:text-emerald-900 p-3 rounded-xl text-lg font-bold border border-slate-700 light:border-emerald-300 shadow">↻</button>
+        <button id="btnRight" class="bg-slate-800 light:bg-white active:bg-slate-700 text-slate-200 light:text-emerald-900 p-3 rounded-xl text-lg font-bold border border-slate-700 light:border-emerald-300 shadow">▶</button>
+        <button id="btnDrop" class="bg-emerald-600 active:bg-emerald-500 text-white p-3 rounded-xl text-xs font-extrabold border border-emerald-500 shadow col-span-1">DROP</button>
+        <button id="btnDown" class="bg-slate-800 light:bg-white active:bg-slate-700 text-slate-200 light:text-emerald-900 p-2.5 rounded-xl text-xs font-bold border border-slate-700 light:border-emerald-300 col-span-5 mt-0.5 shadow">▼ Soft Drop (빠르게 내려놓기)</button>
+      </div>
+
+    </div>
+
+    <!-- Bottom Promotional Clickable Banner -->
+    <a href="https://www.google.com" target="_blank" rel="noopener noreferrer" class="w-full mt-4 group block">
+      <div class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-2xl p-3.5 sm:p-4 shadow-lg flex items-center justify-between transition-all duration-300 transform group-hover:-translate-y-0.5 border border-emerald-400/30">
+        <div class="flex items-center gap-3">
+          <div class="bg-white/20 p-2 rounded-xl text-xl backdrop-blur-sm group-hover:scale-110 transition">
+            🌐
+          </div>
+          <div>
+            <div class="font-bold text-xs sm:text-sm tracking-wide flex items-center gap-1.5">
+              <span>구글(Google) 공식 홈페이지 방문하기</span>
+              <span class="bg-white/20 text-[10px] px-1.5 py-0.2 rounded text-white">Ad</span>
+            </div>
+            <p class="text-[11px] sm:text-xs text-emerald-100 opacity-90">더 많은 정보와 유용한 서비스를 Google에서 검색해보세요!</p>
+          </div>
+        </div>
+        <div class="hidden sm:flex items-center gap-1 text-xs font-semibold bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-sm group-hover:bg-white/20 transition">
+          <span>이동하기</span>
+          <span>➔</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Footer Copyright Notice -->
+    <footer class="mt-4 text-center text-xs text-slate-500 light:text-emerald-800 font-medium pb-2">
+      <p>© 2026 이윤석. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // --- Constants & Config ---
+    const COLS = 10;
+    const ROWS = 20;
+    const BLOCK_SIZE = 30;
+
+    // Elements
+    const canvas = document.getElementById('tetrisCanvas');
+    const ctx = canvas.getContext('2d');
+    const nextCanvas = document.getElementById('nextCanvas');
+    const nextCtx = nextCanvas.getContext('2d');
+    const holdCanvas = document.getElementById('holdCanvas');
+    const holdCtx = holdCanvas.getContext('2d');
+
+    const scoreText = document.getElementById('scoreText');
+    const highScoreText = document.getElementById('highScoreText');
+    const levelText = document.getElementById('levelText');
+    const linesText = document.getElementById('linesText');
+    const nextVegetableLabel = document.getElementById('nextVegetableLabel');
+    const holdVegetableLabel = document.getElementById('holdVegetableLabel');
+
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlaySubtitle = document.getElementById('overlaySubtitle');
+    const overlayEmoji = document.getElementById('overlayEmoji');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const pauseIcon = document.getElementById('pauseIcon');
+    const sfxBtn = document.getElementById('sfxBtn');
+    const sfxIcon = document.getElementById('sfxIcon');
+    const bgmBtn = document.getElementById('bgmBtn');
+    const bgmIcon = document.getElementById('bgmIcon');
+    const restartBtn = document.getElementById('restartBtn');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+
+    // Vegetable Tetromino Definitions
+    const VEGETABLES = {
+      I: { name: '당근', emoji: '🥕', color: '#f97316', darkAccent: '#ea580c' },
+      T: { name: '브로콜리', emoji: '🥦', color: '#22c55e', darkAccent: '#16a34a' },
+      O: { name: '옥수수', emoji: '🌽', color: '#eab308', darkAccent: '#ca8a04' },
+      J: { name: '가지', emoji: '🍆', color: '#a855f7', darkAccent: '#9333ea' },
+      L: { name: '토마토', emoji: '🍅', color: '#ef4444', darkAccent: '#dc2626' },
+      S: { name: '오이', emoji: '🥒', color: '#10b981', darkAccent: '#059669' },
+      Z: { name: '고추', emoji: '🌶️', color: '#f43f5e', darkAccent: '#e11d48' }
+    };
+
+    const SHAPES = {
+      I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+      T: [[0,1,0],[1,1,1],[0,0,0]],
+      O: [[1,1],[1,1]],
+      J: [[1,0,0],[1,1,1],[0,0,0]],
+      L: [[0,0,1],[1,1,1],[0,0,0]],
+      S: [[0,1,1],[1,1,0],[0,0,0]],
+      Z: [[1,1,0],[0,1,1],[0,0,0]]
+    };
+
+    // Game Variables
+    let grid = createGrid();
+    let score = 0;
+    let highScore = localStorage.getItem('veg_tetris_highscore') || 0;
+    let level = 1;
+    let lines = 0;
+    let gameOver = false;
+    let isPaused = false;
+    let gameStarted = false;
+
+    let sfxEnabled = true;
+    let bgmEnabled = false;
+    let isDarkMode = true;
+
+    let currentPiece = null;
+    let nextPiece = null;
+    let holdPiece = null;
+    let canHold = true;
+
+    let dropCounter = 0;
+    let dropInterval = 1000;
+    let lastTime = 0;
+    let animationId = null;
+
+    // --- Audio Synthesis Engine (Tone.js) ---
+    let sfxSynth = null;
+    let bgmLoop = null;
+
+    function initAudioEngine() {
+      if (!sfxSynth) {
+        sfxSynth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+        }).toDestination();
+        sfxSynth.volume.value = -8;
+      }
+    }
+
+    function playSFX(type) {
+      if (!sfxEnabled) return;
+      try {
+        if (Tone.context.state !== 'running') Tone.start();
+        initAudioEngine();
+
+        if (type === 'move') sfxSynth.triggerAttackRelease('C4', '16n');
+        else if (type === 'rotate') sfxSynth.triggerAttackRelease('E4', '16n');
+        else if (type === 'drop') sfxSynth.triggerAttackRelease('G3', '16n');
+        else if (type === 'clear') sfxSynth.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '8n');
+        else if (type === 'hold') sfxSynth.triggerAttackRelease('A4', '16n');
+        else if (type === 'gameover') sfxSynth.triggerAttackRelease(['C3', 'D#3', 'F3'], '4n');
+      } catch (e) {}
+    }
+
+    // BGM Farm Tune Loop
+    function setupBGM() {
+      if (bgmLoop) return;
+
+      const synth = new Tone.Synth({
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 0.2 }
+      }).toDestination();
+      synth.volume.value = -16;
+
+      const notes = [
+        { time: "0:0", note: "C4", dur: "8n" },
+        { time: "0:1", note: "E4", dur: "8n" },
+        { time: "0:2", note: "G4", dur: "8n" },
+        { time: "0:3", note: "E4", dur: "8n" },
+        { time: "1:0", note: "F4", dur: "8n" },
+        { time: "1:1", note: "A4", dur: "8n" },
+        { time: "1:2", note: "G4", dur: "4n" },
+        { time: "2:0", note: "C4", dur: "8n" },
+        { time: "2:1", note: "E4", dur: "8n" },
+        { time: "2:2", note: "G4", dur: "8n" },
+        { time: "2:3", note: "C5", dur: "8n" },
+        { time: "3:0", note: "B4", dur: "8n" },
+        { time: "3:1", note: "A4", dur: "8n" },
+        { time: "3:2", note: "G4", dur: "4n" }
+      ];
+
+      bgmLoop = new Tone.Part((time, value) => {
+        synth.triggerAttackRelease(value.note, value.dur, time);
+      }, notes);
+
+      bgmLoop.loop = true;
+      bgmLoop.loopEnd = "4:0";
+      Tone.Transport.bpm.value = 110;
+    }
+
+    async function toggleBGM() {
+      bgmEnabled = !bgmEnabled;
+      if (bgmEnabled) {
+        await Tone.start();
+        setupBGM();
+        Tone.Transport.start();
+        bgmLoop.start(0);
+        bgmIcon.innerText = '🎶';
+        bgmBtn.classList.add('ring-2', 'ring-emerald-400');
+      } else {
+        if (bgmLoop) bgmLoop.stop();
+        Tone.Transport.stop();
+        bgmIcon.innerText = '🎵';
+        bgmBtn.classList.remove('ring-2', 'ring-emerald-400');
+      }
+    }
+
+    // --- High Score Logic ---
+    function updateHighScore() {
+      highScoreText.innerText = highScore.toLocaleString();
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('veg_tetris_highscore', highScore);
+        highScoreText.innerText = highScore.toLocaleString();
+      }
+    }
+
+    // --- Core Tetris Helper Logic ---
+    function createGrid() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    }
+
+    function getRandomPiece() {
+      const keys = Object.keys(VEGETABLES);
+      const type = keys[Math.floor(Math.random() * keys.length)];
+      return {
+        type: type,
+        matrix: SHAPES[type],
+        x: Math.floor(COLS / 2) - Math.ceil(SHAPES[type][0].length / 2),
+        y: 0
+      };
+    }
+
+    function collide(grid, piece) {
+      const m = piece.matrix;
+      for (let r = 0; r < m.length; ++r) {
+        for (let c = 0; c < m[r].length; ++c) {
+          if (m[r][c] !== 0) {
+            const newX = piece.x + c;
+            const newY = piece.y + r;
+            if (newX < 0 || newX >= COLS || newY >= ROWS) return true;
+            if (newY >= 0 && grid[newY][newX] !== 0) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function merge(grid, piece) {
+      piece.matrix.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val !== 0) {
+            const gridY = piece.y + r;
+            if (gridY >= 0) grid[gridY][piece.x + c] = piece.type;
+          }
+        });
+      });
+    }
+
+    function rotateMatrix(matrix, dir) {
+      const result = matrix.map((_, i) => matrix.map(col => col[i]));
+      if (dir > 0) return result.map(row => row.reverse());
+      return result.reverse();
+    }
+
+    function playerRotate(dir) {
+      if (!currentPiece || isPaused || gameOver) return;
+      const pos = currentPiece.x;
+      let offset = 1;
+      currentPiece.matrix = rotateMatrix(currentPiece.matrix, dir);
+      
+      while (collide(grid, currentPiece)) {
+        currentPiece.x += offset;
+        offset = -(offset + (offset > 0 ? 1 : -1));
+        if (offset > currentPiece.matrix[0].length) {
+          currentPiece.matrix = rotateMatrix(currentPiece.matrix, -dir);
+          currentPiece.x = pos;
+          return;
+        }
+      }
+      playSFX('rotate');
+    }
+
+    function playerMove(dir) {
+      if (!currentPiece || isPaused || gameOver) return;
+      currentPiece.x += dir;
+      if (collide(grid, currentPiece)) {
+        currentPiece.x -= dir;
+      } else {
+        playSFX('move');
+      }
+    }
+
+    function playerDrop() {
+      if (!currentPiece || isPaused || gameOver) return;
+      currentPiece.y++;
+      if (collide(grid, currentPiece)) {
+        currentPiece.y--;
+        lockPiece();
+      } else {
+        score += 1;
+        updateUI();
+      }
+      dropCounter = 0;
+    }
+
+    function playerHardDrop() {
+      if (!currentPiece || isPaused || gameOver) return;
+      let dropDistance = 0;
+      while (!collide(grid, currentPiece)) {
+        currentPiece.y++;
+        dropDistance++;
+      }
+      currentPiece.y--;
+      score += dropDistance * 2;
+      playSFX('drop');
+      lockPiece();
+      dropCounter = 0;
+    }
+
+    function holdCurrentPiece() {
+      if (!canHold || isPaused || gameOver) return;
+
+      if (holdPiece === null) {
+        holdPiece = { type: currentPiece.type, matrix: SHAPES[currentPiece.type] };
+        currentPiece = nextPiece;
+        nextPiece = getRandomPiece();
+      } else {
+        const temp = { type: currentPiece.type, matrix: SHAPES[currentPiece.type] };
+        currentPiece = {
+          type: holdPiece.type,
+          matrix: SHAPES[holdPiece.type],
+          x: Math.floor(COLS / 2) - Math.ceil(SHAPES[holdPiece.type][0].length / 2),
+          y: 0
+        };
+        holdPiece = temp;
+      }
+
+      canHold = false;
+      drawPreview(holdCanvas, holdCtx, holdPiece);
+      drawPreview(nextCanvas, nextCtx, nextPiece);
+      holdVegetableLabel.innerText = VEGETABLES[holdPiece.type].name + ' ' + VEGETABLES[holdPiece.type].emoji;
+      nextVegetableLabel.innerText = VEGETABLES[nextPiece.type].name + ' ' + VEGETABLES[nextPiece.type].emoji;
+      playSFX('hold');
+    }
+
+    function lockPiece() {
+      merge(grid, currentPiece);
+      clearLines();
+      
+      currentPiece = nextPiece;
+      nextPiece = getRandomPiece();
+      canHold = true;
+
+      drawPreview(nextCanvas, nextCtx, nextPiece);
+      nextVegetableLabel.innerText = VEGETABLES[nextPiece.type].name + ' ' + VEGETABLES[nextPiece.type].emoji;
+
+      if (collide(grid, currentPiece)) {
+        handleGameOver();
+      }
+    }
+
+    function clearLines() {
+      let linesCleared = 0;
+
+      outer: for (let y = ROWS - 1; y >= 0; --y) {
+        for (let x = 0; x < COLS; ++x) {
+          if (grid[y][x] === 0) continue outer;
+        }
+
+        const row = grid.splice(y, 1)[0].fill(0);
+        grid.unshift(row);
+        ++y;
+        linesCleared++;
+      }
+
+      if (linesCleared > 0) {
+        lines += linesCleared;
+        const lineScores = [0, 100, 300, 500, 800];
+        score += (lineScores[linesCleared] || 1000) * level;
+
+        level = Math.floor(lines / 10) + 1;
+        dropInterval = Math.max(100, 1000 - (level - 1) * 85);
+
+        playSFX('clear');
+        updateUI();
+      }
+    }
+
+    function updateUI() {
+      scoreText.innerText = score.toLocaleString();
+      levelText.innerText = level;
+      linesText.innerText = lines;
+      updateHighScore();
+    }
+
+    // --- Custom Renderers for Vegetable Style ---
+    function drawVegetableBlock(context, x, y, type, size = BLOCK_SIZE) {
+      const veg = VEGETABLES[type];
+      if (!veg) return;
+
+      // Outer block base
+      context.fillStyle = veg.color;
+      context.beginPath();
+      context.roundRect(x * size + 1, y * size + 1, size - 2, size - 2, 6);
+      context.fill();
+
+      // Top Highlight
+      context.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      context.beginPath();
+      context.roundRect(x * size + 3, y * size + 3, size - 6, (size - 6) * 0.35, 4);
+      context.fill();
+
+      // Draw Vegetable Emoji in center of block
+      context.font = `${Math.floor(size * 0.55)}px sans-serif`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(veg.emoji, x * size + size / 2, y * size + size / 2 + 1);
+    }
+
+    function drawGhostPiece() {
+      if (!currentPiece) return;
+      const ghost = { ...currentPiece, y: currentPiece.y };
+
+      while (!collide(grid, ghost)) {
+        ghost.y++;
+      }
+      ghost.y--;
+
+      ghost.matrix.forEach((row, r) => {
+        row.forEach((val, c) => {
+          if (val !== 0) {
+            const gx = (ghost.x + c) * BLOCK_SIZE;
+            const gy = (ghost.y + r) * BLOCK_SIZE;
+            ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.25)' : 'rgba(16, 185, 129, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(gx + 2, gy + 2, BLOCK_SIZE - 4, BLOCK_SIZE - 4);
+          }
+        });
+      });
+    }
+
+    function draw() {
+      // Background colors
+      const bgCanvas = isDarkMode ? '#020617' : '#ffffff';
+      const gridColor = isDarkMode ? '#1e293b' : '#ecfdf5';
+
+      ctx.fillStyle = bgCanvas;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid line rendering
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      for (let r = 0; r < ROWS; r++) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * BLOCK_SIZE);
+        ctx.lineTo(canvas.width, r * BLOCK_SIZE);
+        ctx.stroke();
+      }
+      for (let c = 0; c < COLS; c++) {
+        ctx.beginPath();
+        ctx.moveTo(c * BLOCK_SIZE, 0);
+        ctx.lineTo(c * BLOCK_SIZE, canvas.height);
+        ctx.stroke();
+      }
+
+      // Draw placed grid
+      grid.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            drawVegetableBlock(ctx, x, y, value);
+          }
+        });
+      });
+
+      // Draw active falling piece
+      if (currentPiece) {
+        drawGhostPiece();
+        currentPiece.matrix.forEach((row, y) => {
+          row.forEach((value, x) => {
+            if (value !== 0) {
+              drawVegetableBlock(ctx, currentPiece.x + x, currentPiece.y + y, currentPiece.type);
+            }
+          });
+        });
+      }
+    }
+
+    function drawPreview(canvasEl, context, piece) {
+      const bgCanvas = isDarkMode ? '#020617' : '#ffffff';
+      context.fillStyle = bgCanvas;
+      context.fillRect(0, 0, canvasEl.width, canvasEl.height);
+
+      if (!piece) return;
+
+      const pMatrix = piece.matrix;
+      const tileSize = 18;
+      const offsetX = (canvasEl.width - pMatrix[0].length * tileSize) / 2;
+      const offsetY = (canvasEl.height - pMatrix.length * tileSize) / 2;
+
+      pMatrix.forEach((row, y) => {
+        row.forEach((val, x) => {
+          if (val !== 0) {
+            const px = (offsetX + x * tileSize) / tileSize;
+            const py = (offsetY + y * tileSize) / tileSize;
+            drawVegetableBlock(context, px, py, piece.type, tileSize);
+          }
+        });
+      });
+    }
+
+    // --- Main Game Loop ---
+    function update(time = 0) {
+      if (!gameStarted || isPaused || gameOver) return;
+
+      const deltaTime = time - lastTime;
+      lastTime = time;
+
+      dropCounter += deltaTime;
+      if (dropCounter > dropInterval) {
+        playerDrop();
+      }
+
+      draw();
+      animationId = requestAnimationFrame(update);
+    }
+
+    // --- State Controllers ---
+    function startGame() {
+      grid = createGrid();
+      score = 0;
+      level = 1;
+      lines = 0;
+      gameOver = false;
+      isPaused = false;
+      gameStarted = true;
+      dropInterval = 1000;
+      holdPiece = null;
+      canHold = true;
+
+      currentPiece = getRandomPiece();
+      nextPiece = getRandomPiece();
+
+      updateUI();
+      drawPreview(nextCanvas, nextCtx, nextPiece);
+      nextVegetableLabel.innerText = VEGETABLES[nextPiece.type].name + ' ' + VEGETABLES[nextPiece.type].emoji;
+      
+      holdCtx.fillStyle = isDarkMode ? '#020617' : '#ffffff';
+      holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+      holdVegetableLabel.innerText = '-';
+
+      overlay.classList.add('hidden');
+      lastTime = performance.now();
+      cancelAnimationFrame(animationId);
+      update();
+    }
+
+    function handleGameOver() {
+      gameOver = true;
+      gameStarted = false;
+      playSFX('gameover');
+
+      overlayEmoji.innerText = '🌾';
+      overlayTitle.innerText = '수확 종료! (GAME OVER)';
+      overlayTitle.className = 'font-pixel text-xl sm:text-2xl text-rose-500 mb-2';
+      overlaySubtitle.innerText = `최종 수확 점수: ${score.toLocaleString()}점`;
+      startBtn.innerText = '다시 수확하기';
+      overlay.classList.remove('hidden');
+    }
+
+    function togglePause() {
+      if (!gameStarted || gameOver) return;
+      isPaused = !isPaused;
+
+      if (isPaused) {
+        pauseIcon.innerText = '▶️';
+        overlayEmoji.innerText = '⏸️';
+        overlayTitle.innerText = '일시 정지';
+        overlayTitle.className = 'font-pixel text-xl sm:text-2xl text-amber-400 mb-2';
+        overlaySubtitle.innerText = '게임이 잠시 멈췄습니다.';
+        startBtn.innerText = '계속하기';
+        overlay.classList.remove('hidden');
+      } else {
+        pauseIcon.innerText = '⏸️';
+        overlay.classList.add('hidden');
+        lastTime = performance.now();
+        update();
+      }
+    }
+
+    // --- Theme Switch Logic (Dark/Light) ---
+    function toggleTheme() {
+      isDarkMode = !isDarkMode;
+      const body = document.body;
+
+      if (isDarkMode) {
+        body.classList.add('dark');
+        themeIcon.innerText = '🌙';
+        themeLabel.innerText = '다크';
+      } else {
+        body.classList.remove('dark');
+        themeIcon.innerText = '☀️';
+        themeLabel.innerText = '화이트';
+      }
+
+      // Re-render canvases for colors
+      draw();
+      if (nextPiece) drawPreview(nextCanvas, nextCtx, nextPiece);
+      if (holdPiece) drawPreview(holdCanvas, holdCtx, holdPiece);
+    }
+
+    // --- Key Events ---
+    document.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+
+      if (gameOver && e.key === ' ') {
+        startGame();
+        return;
+      }
+
+      if (!gameStarted) {
+        if (e.key === ' ' || e.key === 'Enter') startGame();
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'a':
+        case 'A': playerMove(-1); break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D': playerMove(1); break;
+        case 'ArrowDown':
+        case 's':
+        case 'S': playerDrop(); break;
+        case 'ArrowUp':
+        case 'w':
+        case 'W': playerRotate(1); break;
+        case 'z':
+        case 'Z': playerRotate(-1); break;
+        case ' ': playerHardDrop(); break;
+        case 'c':
+        case 'C':
+        case 'Shift': holdCurrentPiece(); break;
+        case 'p':
+        case 'P': togglePause(); break;
+      }
+      draw();
+    });
+
+    // Mobile Control Listeners
+    document.getElementById('btnLeft').addEventListener('click', () => playerMove(-1));
+    document.getElementById('btnRight').addEventListener('click', () => playerMove(1));
+    document.getElementById('btnRotate').addEventListener('click', () => playerRotate(1));
+    document.getElementById('btnDown').addEventListener('click', () => playerDrop());
+    document.getElementById('btnDrop').addEventListener('click', () => playerHardDrop());
+    document.getElementById('btnHold').addEventListener('click', () => holdCurrentPiece());
+
+    // Button Click Event Bindings
+    startBtn.addEventListener('click', () => isPaused ? togglePause() : startGame());
+    pauseBtn.addEventListener('click', togglePause);
+    restartBtn.addEventListener('click', startGame);
+    themeToggleBtn.addEventListener('click', toggleTheme);
+    bgmBtn.addEventListener('click', toggleBGM);
+
+    sfxBtn.addEventListener('click', () => {
+      sfxEnabled = !sfxEnabled;
+      sfxIcon.innerText = sfxEnabled ? '🔊' : '🔇';
+    });
+
+    // Initial setups
+    updateHighScore();
+    draw();
+  </script>
+</body>
+</html>
